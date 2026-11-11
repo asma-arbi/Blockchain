@@ -1002,5 +1002,5 @@ export const AUTHORITY_ABI = [
   }
 ] as const;
 
-export const CONTRACT_NETWORK = "hardhat" as const;
+export const CONTRACT_NETWORK = "localhost" as const;
 export const CONTRACT_CHAIN_ID = 31337 as const;
