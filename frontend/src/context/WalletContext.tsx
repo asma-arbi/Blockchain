@@ -17,6 +17,7 @@ interface WalletContextType {
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   switchNetwork: (targetId?: number) => Promise<void>;
+  requestFaucet: () => Promise<boolean>;
   error: string | null;
 }
 
@@ -119,7 +120,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const browserProvider = new BrowserProvider(window.ethereum as any);
       setProvider(browserProvider);
 
-      const accounts = await browserProvider.send("eth_requestAccounts", []);
+      let accounts: string[] = [];
+      try {
+        // Tente de forcer la fenêtre de sélection et reconnexion de compte dans MetaMask
+        await (window.ethereum as any).request({
+          method: "wallet_requestPermissions",
+          params: [{ eth_accounts: {} }],
+        });
+        accounts = (await browserProvider.send("eth_accounts", [])) as string[];
+      } catch (permErr: any) {
+        if (permErr.code === 4001) {
+          setError("Connexion refusée par l'utilisateur dans MetaMask.");
+          return;
+        }
+        // Fallback standard si wallet_requestPermissions n'est pas supporté
+        accounts = (await browserProvider.send("eth_requestAccounts", [])) as string[];
+      }
+
+      if (accounts.length === 0) {
+        setError("Aucun compte sélectionné.");
+        return;
+      }
+
       const network = await browserProvider.getNetwork();
       const currentChainId = Number(network.chainId);
       const currentAccount = accounts[0];
@@ -127,7 +149,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setAccount(currentAccount);
       setChainId(currentChainId);
 
-      const currentSigner = await browserProvider.getSigner();
+      const currentSigner = await browserProvider.getSigner(currentAccount);
       setSigner(currentSigner);
 
       await refreshBalance(currentAccount, browserProvider);
@@ -198,6 +220,34 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Demande de faucet automatique pour le nœud local Hardhat (100 ETH)
+  const requestFaucet = useCallback(async (): Promise<boolean> => {
+    if (!account) return false;
+    try {
+      const res = await fetch("http://127.0.0.1:8545", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "hardhat_setBalance",
+          params: [account, "0x56bc75e2d63100000"], // 100 ETH
+          id: Date.now(),
+        }),
+      });
+      const data = await res.json();
+      if (data && data.result) {
+        if (provider) {
+          await refreshBalance(account, provider);
+        }
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn("Échec du faucet :", err);
+      return false;
+    }
+  }, [account, provider, refreshBalance]);
+
   return (
     <WalletContext.Provider
       value={{
@@ -214,6 +264,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         connectWallet,
         disconnectWallet,
         switchNetwork,
+        requestFaucet,
         error,
       }}
     >

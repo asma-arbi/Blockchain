@@ -410,9 +410,25 @@ export const RegisterDocument: React.FC<RegisterDocumentProps> = ({
       {txState.step === "error" && (
         <div className="p-5 rounded-2xl bg-rose-950/50 border border-rose-500/40 flex items-start space-x-3 text-rose-200">
           <AlertCircle className="w-6 h-6 text-rose-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
+          <div className="text-sm space-y-2 flex-1">
             <h5 className="font-semibold text-white">Échec de l'enregistrement</h5>
-            <p className="text-xs text-rose-300 mt-1">{txState.errorMessage}</p>
+            <div className="text-xs text-rose-300 mt-1 whitespace-pre-line leading-relaxed font-sans">
+              {txState.errorMessage}
+            </div>
+            {txState.errorMessage?.includes("autorisé") && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await connectWallet();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all flex items-center space-x-2 cursor-pointer"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Reconnecter et autoriser MetaMask maintenant</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

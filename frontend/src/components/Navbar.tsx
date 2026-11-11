@@ -1,5 +1,5 @@
-import React from "react";
-import { Shield, Wallet, AlertTriangle, ExternalLink, LogOut } from "lucide-react";
+import React, { useState } from "react";
+import { Shield, Wallet, AlertTriangle, ExternalLink, LogOut, Coins } from "lucide-react";
 import { useWallet } from "../context/WalletContext";
 import { shortenAddress } from "../utils/crypto";
 import { SUPPORTED_NETWORKS } from "../types";
@@ -17,7 +17,19 @@ export const Navbar: React.FC = () => {
     connectWallet,
     disconnectWallet,
     switchNetwork,
+    requestFaucet,
   } = useWallet();
+
+  const [isFunding, setIsFunding] = useState(false);
+
+  const handleFaucet = async () => {
+    setIsFunding(true);
+    try {
+      await requestFaucet();
+    } finally {
+      setIsFunding(false);
+    }
+  };
 
   const currentNetwork = chainId ? SUPPORTED_NETWORKS[chainId] : null;
   const targetNetwork = SUPPORTED_NETWORKS[targetChainId];
@@ -98,6 +110,20 @@ export const Navbar: React.FC = () => {
                     {balance} ETH
                   </span>
                 )}
+
+                {/* Bouton Faucet 100 ETH (Nœud Local Hardhat) */}
+                {chainId === 31337 && (
+                  <button
+                    onClick={handleFaucet}
+                    disabled={isFunding}
+                    title="Recevoir 100 ETH de test sur le nœud local Hardhat"
+                    className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Coins className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isFunding ? "Envoi..." : "+100 ETH"}</span>
+                  </button>
+                )}
+
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white uppercase">
                     {account?.slice(2, 4)}
