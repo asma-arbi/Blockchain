@@ -4,12 +4,18 @@ import { NetworkAlert } from "./components/NetworkAlert";
 import { RegisterDocument } from "./components/RegisterDocument";
 import { VerifyDocument } from "./components/VerifyDocument";
 import { MyDocuments } from "./components/MyDocuments";
+import { AuthorityPanel } from "./components/AuthorityPanel";
 import { HowItWorks } from "./components/HowItWorks";
-import { CONTRACT_ADDRESS, CONTRACT_NETWORK, CONTRACT_CHAIN_ID } from "./contracts/contractConfig";
+import {
+  DOCUMENT_REGISTRY_ADDRESS,
+  AUTHORITY_ADDRESS,
+  CONTRACT_NETWORK,
+  CONTRACT_CHAIN_ID,
+} from "./contracts/contractConfig";
 import { shortenAddress } from "./utils/crypto";
-import { Shield, Search, FileText, HelpCircle } from "lucide-react";
+import { Shield, Search, FileText, HelpCircle, Award } from "lucide-react";
 
-export type TabKey = "register" | "verify" | "my-docs" | "how-it-works";
+export type TabKey = "register" | "verify" | "my-docs" | "authority" | "how-it-works";
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("register");
@@ -30,14 +36,14 @@ export const App: React.FC = () => {
         <div className="text-center space-y-3">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-            <span>Preuve d'existence & Non-répudiation Décentralisée</span>
+            <span>Architecture Multi-Contrats • Registre & Autorité RBAC</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
             Vérification d'intégrité de documents
           </h1>
           <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
             Ancrez l'empreinte cryptographique de vos fichiers sur la blockchain Ethereum.
-            Prouvez leur authenticité et détectez toute altération au bit près.
+            Prouvez leur authenticité, gérez les rôles d'institutions émettrices et détectez toute altération.
           </p>
         </div>
 
@@ -46,7 +52,7 @@ export const App: React.FC = () => {
           <div className="bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 flex flex-wrap gap-1 shadow-lg">
             <button
               onClick={() => setActiveTab("register")}
-              className={`flex items-center space-x-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "register"
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
                   : "text-slate-400 hover:text-white hover:bg-slate-800/60"
@@ -58,7 +64,7 @@ export const App: React.FC = () => {
 
             <button
               onClick={() => setActiveTab("verify")}
-              className={`flex items-center space-x-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "verify"
                   ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
                   : "text-slate-400 hover:text-white hover:bg-slate-800/60"
@@ -69,8 +75,20 @@ export const App: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab("authority")}
+              className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                activeTab === "authority"
+                  ? "bg-purple-600 text-white shadow-md shadow-purple-600/30"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>Gouvernance & Rôles (RBAC)</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab("my-docs")}
-              className={`flex items-center space-x-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "my-docs"
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
                   : "text-slate-400 hover:text-white hover:bg-slate-800/60"
@@ -82,14 +100,14 @@ export const App: React.FC = () => {
 
             <button
               onClick={() => setActiveTab("how-it-works")}
-              className={`flex items-center space-x-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center space-x-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "how-it-works"
                   ? "bg-slate-800 text-white"
                   : "text-slate-400 hover:text-white hover:bg-slate-800/60"
               }`}
             >
               <HelpCircle className="w-4 h-4" />
-              <span>Principe</span>
+              <span>Architecture</span>
             </button>
           </div>
         </div>
@@ -107,6 +125,8 @@ export const App: React.FC = () => {
             <VerifyDocument initialHash={verifyInitialHash} />
           )}
 
+          {activeTab === "authority" && <AuthorityPanel />}
+
           {activeTab === "my-docs" && (
             <MyDocuments
               onVerifyDocument={handleNavigateToVerify}
@@ -121,16 +141,19 @@ export const App: React.FC = () => {
       {/* Pied de page */}
       <footer className="border-t border-slate-900 bg-slate-950/60 py-8 mt-auto text-xs text-slate-500">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center space-x-2">
-            <span>Smart Contract :</span>
-            <code className="font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-              {shortenAddress(CONTRACT_ADDRESS, 8, 6)}
-            </code>
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Contrats actifs :</span>
+            <span className="font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+              Registry: {shortenAddress(DOCUMENT_REGISTRY_ADDRESS, 6, 4)}
+            </span>
+            <span className="font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+              Authority: {shortenAddress(AUTHORITY_ADDRESS, 6, 4)}
+            </span>
             <span className="text-slate-600">•</span>
             <span>Réseau : {CONTRACT_NETWORK} ({CONTRACT_CHAIN_ID})</span>
           </div>
           <div className="flex items-center space-x-4">
-            <span>Solidity ^0.8.20 • Ethers.js v6 • Web Crypto API</span>
+            <span>Solidity ^0.8.20 • OpenZeppelin RBAC • Ethers.js v6</span>
           </div>
         </div>
       </footer>
