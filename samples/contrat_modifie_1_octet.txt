@@ -1,0 +1,7 @@
+CONTRAT DE PARTENARIAT BLOCKCHAIN
+Date: 04/11/2026
+Objet: Certification d'intégrité numérique décentralisée
+Clause 1: Ce document est authentifié sur la blockchain Ethereum par son empreinte SHA-256.
+Clause 2: Aucune modification n'est tolérée.
+Signataire: Entreprise Alpha & Partenaire Beta
+Montant de la prestation: 50001 EUR

@@ -1,0 +1,37 @@
+{
+  "name": "blockchain-document-integrity",
+  "version": "1.0.0",
+  "description": "Application web de vérification d'intégrité de documents par la blockchain",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build"
+  },
+  "keywords": [
+    "blockchain",
+    "solidity",
+    "hardhat",
+    "ethereum",
+    "document-integrity",
+    "sha256",
+    "ethers"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.24",
+    "chai": "^4.3.7",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.1",
+    "hardhat": "^2.22.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
