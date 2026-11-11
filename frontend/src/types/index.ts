@@ -5,6 +5,22 @@ export interface DocumentRecord {
   name: string;
 }
 
+export enum CertificateStatus {
+  UNKNOWN = 0,
+  ACTIVE = 1,
+  REVOKED = 2,
+}
+
+export interface OfficialCertificate {
+  exists: boolean;
+  status: CertificateStatus;
+  issuer: string;
+  organization: string;
+  issuedAt: number;
+  revocationReason: string;
+  revokedAt: number;
+}
+
 export interface VerificationResult {
   isVerified: boolean;
   checkedHash: string;
@@ -13,6 +29,7 @@ export interface VerificationResult {
   timestamp?: number;
   name?: string;
   errorMessage?: string;
+  officialCert?: OfficialCertificate;
 }
 
 export type TxStep = "idle" | "hashing" | "preparing" | "waiting_signature" | "mining" | "confirmed" | "error";

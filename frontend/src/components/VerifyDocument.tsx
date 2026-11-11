@@ -12,10 +12,14 @@ import {
   Loader2,
   FileText,
   AlertTriangle,
+  Building2,
+  ShieldAlert,
+  Award,
 } from "lucide-react";
 import { hashFile, formatTimestamp, copyToClipboard } from "../utils/crypto";
 import { useDocumentContract } from "../hooks/useDocumentContract";
-import { VerificationResult } from "../types";
+import { useAuthorityContract } from "../hooks/useAuthorityContract";
+import { VerificationResult, CertificateStatus } from "../types";
 
 interface VerifyDocumentProps {
   initialHash?: string;
@@ -23,6 +27,7 @@ interface VerifyDocumentProps {
 
 export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) => {
   const { verifyDocument } = useDocumentContract();
+  const { verifyOfficialCertificate } = useAuthorityContract();
 
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [manualHashInput, setManualHashInput] = useState<string>("");
@@ -34,12 +39,21 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Exécution de la vérification on-chain
+  // Exécution de la vérification on-chain (sur les 2 contrats)
   const executeVerification = async (targetHash: string) => {
     try {
       setIsVerifying(true);
-      const result = await verifyDocument(targetHash);
-      setVerificationResult(result);
+      const [registryResult, officialCert] = await Promise.all([
+        verifyDocument(targetHash),
+        verifyOfficialCertificate(targetHash),
+      ]);
+
+      setVerificationResult({
+        ...registryResult,
+        officialCert: officialCert || undefined,
+        // Si présent dans CertificateAuthority, il existe sur la blockchain
+        exists: registryResult.exists || Boolean(officialCert?.exists),
+      });
     } catch (err: any) {
       setVerificationResult({
         isVerified: false,
@@ -126,6 +140,8 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
     }
   };
 
+  const isRevoked = verificationResult?.officialCert?.status === CertificateStatus.REVOKED;
+
   return (
     <div className="space-y-6">
       {/* Zone de Drag & Drop */}
@@ -160,7 +176,7 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
               </span>
             </h3>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              L'empreinte numérique SHA-256 sera instantanément calculée et interrogée sur la blockchain
+              Interrogation simultanée du registre DocumentRegistry et de l'autorité CertificateAuthority
             </p>
           </div>
         </div>
@@ -207,8 +223,52 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
       {/* RÉSULTAT CLAIR ET DISTINCTIF */}
       {verificationResult && (
         <div className="space-y-4">
-          {verificationResult.exists ? (
-            /* CAS VERT : DOCUMENT INTÈGRE & AUTHENTIQUE */
+          {/* CAS 1 : DOCUMENT RÉVOQUÉ (Alerte Orange/Ambre) */}
+          {isRevoked ? (
+            <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-amber-950/80 to-slate-950 border-2 border-amber-500 shadow-2xl shadow-amber-950/60 space-y-6 animate-fade-in">
+              <div className="flex items-center space-x-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-inner">
+                  <ShieldAlert className="w-9 h-9" />
+                </div>
+                <div>
+                  <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Alerte Révocation Officielle
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-1">
+                    Document officiel RÉVOQUÉ / INVALIDÉ
+                  </h3>
+                  <p className="text-xs sm:text-sm text-amber-200">
+                    Ce document a bien été émis mais a été officiellement révoqué par l'institution émettrice.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-amber-500/30 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 block font-medium">Institution émettrice :</span>
+                    <span className="font-semibold text-white">
+                      {verificationResult.officialCert?.organization}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Date de révocation :</span>
+                    <span className="font-semibold text-amber-300">
+                      {formatTimestamp(verificationResult.officialCert?.revokedAt || 0)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="text-slate-400 block font-medium text-xs">Motif officiel de révocation :</span>
+                  <p className="text-sm font-semibold text-amber-200 mt-1 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+                    "{verificationResult.officialCert?.revocationReason}"
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : verificationResult.exists ? (
+            /* CAS 2 : VERT - DOCUMENT INTÈGRE & ACTIF */
             <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-emerald-950/70 to-slate-950 border-2 border-emerald-500 shadow-2xl shadow-emerald-950/60 space-y-6 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-emerald-500/30 gap-4">
                 <div className="flex items-center space-x-4">
@@ -216,9 +276,17 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
                     <CheckCircle2 className="w-9 h-9" />
                   </div>
                   <div>
-                    <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      Certification Validée
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Certification Validée
+                      </span>
+                      {verificationResult.officialCert?.status === CertificateStatus.ACTIVE && (
+                        <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center space-x-1">
+                          <Award className="w-3 h-3 text-indigo-400" />
+                          <span>Institution Accréditée (RBAC)</span>
+                        </span>
+                      )}
+                    </div>
                     <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-1">
                       Document intègre
                     </h3>
@@ -231,16 +299,33 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
 
               {/* Fiche détaillée du certificat */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Nom enregistré */}
-                <div className="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/20 flex items-start space-x-3">
-                  <FileText className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                  <div className="overflow-hidden">
-                    <div className="text-xs text-slate-400 font-medium">Nom officiel enregistré</div>
-                    <div className="text-sm font-semibold text-white truncate mt-0.5">
-                      {verificationResult.name}
+                {/* Organisme officiel si présent */}
+                {verificationResult.officialCert?.organization && (
+                  <div className="p-4 rounded-xl bg-slate-900/80 border border-indigo-500/30 flex items-start space-x-3 md:col-span-2">
+                    <Building2 className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs text-indigo-300 font-semibold uppercase tracking-wider">
+                        Organisme accrédité émetteur
+                      </div>
+                      <div className="text-sm font-bold text-white mt-0.5">
+                        {verificationResult.officialCert.organization}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Nom enregistré */}
+                {verificationResult.name && (
+                  <div className="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/20 flex items-start space-x-3">
+                    <FileText className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div className="overflow-hidden">
+                      <div className="text-xs text-slate-400 font-medium">Nom du fichier</div>
+                      <div className="text-sm font-semibold text-white truncate mt-0.5">
+                        {verificationResult.name}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Date d'ancrage */}
                 <div className="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/20 flex items-start space-x-3">
@@ -248,24 +333,31 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
                   <div>
                     <div className="text-xs text-slate-400 font-medium">Date d'horodatage blockchain</div>
                     <div className="text-sm font-semibold text-white mt-0.5">
-                      {formatTimestamp(verificationResult.timestamp || 0)}
+                      {formatTimestamp(
+                        verificationResult.timestamp || verificationResult.officialCert?.issuedAt || 0
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Propriétaire / Signataire */}
+                {/* Émetteur */}
                 <div className="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/20 flex items-start justify-between space-x-3 md:col-span-2">
                   <div className="flex items-start space-x-3 overflow-hidden">
                     <User className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                     <div className="overflow-hidden">
-                      <div className="text-xs text-slate-400 font-medium">Émetteur certifié (Propriétaire)</div>
+                      <div className="text-xs text-slate-400 font-medium">Adresse de l'émetteur</div>
                       <div className="text-xs sm:text-sm font-mono text-emerald-300 break-all mt-0.5">
-                        {verificationResult.owner}
+                        {verificationResult.owner || verificationResult.officialCert?.issuer}
                       </div>
                     </div>
                   </div>
                   <button
-                    onClick={() => handleCopyText(verificationResult.owner || "", "owner")}
+                    onClick={() =>
+                      handleCopyText(
+                        verificationResult.owner || verificationResult.officialCert?.issuer || "",
+                        "owner"
+                      )
+                    }
                     className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex-shrink-0 cursor-pointer"
                     title="Copier l'adresse"
                   >
@@ -303,7 +395,7 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
               </div>
             </div>
           ) : (
-            /* CAS ROUGE : DOCUMENT MODIFIÉ OU JAMAIS ENREGISTRÉ */
+            /* CAS 3 : ROUGE - DOCUMENT MODIFIÉ OU JAMAIS ENREGISTRÉ */
             <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-rose-950/70 to-slate-950 border-2 border-rose-500 shadow-2xl shadow-rose-950/60 space-y-6 animate-fade-in">
               <div className="flex items-center space-x-4">
                 <div className="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-400/40 flex items-center justify-center text-rose-400 shadow-inner">
@@ -317,7 +409,7 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
                     Document modifié ou jamais enregistré
                   </h3>
                   <p className="text-xs sm:text-sm text-rose-200">
-                    L'empreinte de ce document ne correspond à aucun ancrage dans le registre.
+                    L'empreinte de ce document ne correspond à aucun ancrage dans le registre ni auprès de l'autorité.
                   </p>
                 </div>
               </div>
@@ -325,9 +417,7 @@ export const VerifyDocument: React.FC<VerifyDocumentProps> = ({ initialHash }) =
               <div className="p-4 rounded-xl bg-slate-900/80 border border-rose-500/20 space-y-3">
                 <div className="flex items-start space-x-2 text-xs text-rose-200">
                   <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                  <span>
-                    Deux causes possibles :
-                  </span>
+                  <span>Deux causes possibles :</span>
                 </div>
                 <ul className="list-disc list-inside text-xs text-slate-300 space-y-1 pl-4">
                   <li>
